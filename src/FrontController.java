@@ -1,48 +1,65 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/JSP_Servlet/Servlet.java to edit this template
- */
-package servlet;
+package servele;
 
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import static java.lang.System.out;
-import java.util.Vector;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.io.*;
+import java.net.URLDecoder;
+import java.util.ArrayList;
+import java.util.List;
+import annotation.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
 
-
-
-/**
- *
- * @author Lenovo Legion
- */
 public class FrontController extends HttpServlet {
 
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        PrintWriter out = response.getWriter();
-        out.println("mikasikasika be");
-        out.println("URL: " + request.getRequestURL().toString());
+    private List<String> controllerNames;
+
+    public void init() throws ServletException {
+        String packageToScan = this.getInitParameter("package_name");
+
+        controllerNames = new ArrayList<>();
+
+        try {
+            String path = getClass().getClassLoader().getResource(packageToScan.replace('.', '/')).getPath();
+            String decodedPath = URLDecoder.decode(path, "UTF-8");
+            File packageDir = new File(decodedPath);
+
+            File[] files = packageDir.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isFile() && file.getName().endsWith(".class")) {
+                        String className = packageToScan + "." + file.getName().replace(".class", "");
+                        Class<?> clazz = Class.forName(className);
+                        if (clazz.isAnnotationPresent(ControllerAnnotation.class)) {
+                            controllerNames.add(clazz.getSimpleName());
+                        }
+                    }
+                }
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
-
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        processRequest(request, response);
+    protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
+        processedRequest(req, res);
     }
 
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+    protected void doPost(HttpServletRequest req, HttpServletResponse res)
             throws ServletException, IOException {
-        processRequest(request, response);
+        processedRequest(req, res);
     }
 
+    protected void processedRequest(HttpServletRequest req, HttpServletResponse res)
+            throws ServletException, IOException {
+        res.setContentType("text/plain");
+        PrintWriter out = res.getWriter();
+        out.println("Tongasoa ato am FrontController");
+        out.println("Votre url : " + req.getRequestURL().toString());
+
+        out.println("Liste des contrôleurs : ");
+        for (String controllerName : controllerNames) {
+            out.println(controllerName);
+        }
+    }
 }
