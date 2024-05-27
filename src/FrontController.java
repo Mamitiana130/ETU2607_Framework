@@ -6,7 +6,10 @@ import java.io.PrintWriter;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.lang.reflect.Method;
 import annotation.*;
+import utils.*;
 
 import java.io.*;
 import javax.servlet.*;
@@ -15,8 +18,18 @@ import javax.servlet.http.*;
 import annotation.ControllerAnnotation;
 
 public class FrontController extends HttpServlet {
-    private List<Class<?>> Listecontroller;
-    private boolean isChecked = false;
+    HashMap<String, Mapping> mapp = new HashMap<>();
+
+    public void init() throws ServletException {
+        try {
+            String packageScan = getInitParameter("package_name");
+            mapp = getAllClasses(packageScan);
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     public void doPost(HttpServletRequest requette, HttpServletResponse response) throws ServletException, IOException {
         this.processRequest(requette, response);
@@ -28,30 +41,21 @@ public class FrontController extends HttpServlet {
 
     public void processRequest(HttpServletRequest requette, HttpServletResponse response)
             throws ServletException, IOException {
-        StringBuffer url = requette.getRequestURL();
+        String url = requette.getRequestURL().toString();
         PrintWriter out = response.getWriter();
-        out.println("Mamt was here" + url);
-        if (!this.isChecked) {
-            String packageScan = this.getInitParameter("package_name");
-            try {
-                this.Listecontroller = this.getListeControllers(packageScan);
-                this.isChecked = true;
-            } catch (Exception e) {
-                e.printStackTrace();
+        for (String key : mapp.keySet()) {
+            if (key.equals(url)) {
+                out.println("URL: " + url + "\n");
+                out.println("Function associate: " + mapp.get(key).getMethodeName());
+                out.println("with the class: " + mapp.get(key).getClassName());
             }
         }
-        for (Class<?> classs : Listecontroller) {
-            out.println(classs.getName());
-        }
     }
 
-    boolean isController(Class<?> c) {
-        return c.isAnnotationPresent(ControllerAnnotation.class);
-    }
-
-    List<Class<?>> getListeControllers(String packageName) throws Exception {
-        List<Class<?>> res = new ArrayList<Class<?>>();
-        String path = this.getClass().getClassLoader().getResource(packageName.replace('.', '/')).getPath();
+    public HashMap getAllClasses(String packageName) throws Exception {
+        HashMap<String, Mapping> map = new HashMap<>();
+        String path = Thread.currentThread().getContextClassLoader().getResource(packageName.replace('.', '/'))
+                .getPath();
         String decodedPath = URLDecoder.decode(path, "UTF-8");
         File packageDir = new File(decodedPath);
 
@@ -61,13 +65,23 @@ public class FrontController extends HttpServlet {
                 if (file.isFile() && file.getName().endsWith(".class")) {
                     String className = packageName + "." + file.getName().replace(".class", "");
                     Class<?> classe = Class.forName(className);
-                    if (this.isController(classe)) {
-                        res.add(classe);
+                    for (Method method : classe.getDeclaredMethods()) {
+                        if (method.isAnnotationPresent(Get.class)) {
+                            Get annotation = method.getAnnotation(Get.class);
+                            String nameClass = classe.getSimpleName();
+                            String annotationName = annotation.value();
+                            String methodName = method.getName();
+
+                            map.put(annotationName, new Mapping(nameClass, methodName));
+
+                            System.out.println("Method annotation :" + method.getName());
+                            System.out.println("Valeur de l annotation: " + annotation.value());
+                        }
                     }
                 }
             }
         }
-        return res;
+        return map;
 
     }
 }
