@@ -48,6 +48,16 @@ public class FrontController extends HttpServlet {
                 out.println("URL: " + url + "\n");
                 out.println("Function associate: " + mapp.get(key).getMethodeName());
                 out.println("with the class: " + mapp.get(key).getClassName());
+                try {
+                    Class<?> clazz = Class.forName(mapp.get(key).getClassName());
+                    Object instance = clazz.getDeclaredConstructor().newInstance();
+                    Method method = clazz.getMethod(mapp.get(key).getMethodeName());
+
+                    Object result = method.invoke(instance);
+                    out.println("Result of the execution: " + result.toString());
+                } catch (Exception e) {
+                    e.printStackTrace(out);
+                }
             }
         }
     }
@@ -68,7 +78,7 @@ public class FrontController extends HttpServlet {
                     for (Method method : classe.getDeclaredMethods()) {
                         if (method.isAnnotationPresent(Get.class)) {
                             Get annotation = method.getAnnotation(Get.class);
-                            String nameClass = classe.getSimpleName();
+                            String nameClass = classe.getName();
                             String annotationName = annotation.value();
                             String methodName = method.getName();
 
