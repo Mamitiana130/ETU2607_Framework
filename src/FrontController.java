@@ -55,6 +55,18 @@ public class FrontController extends HttpServlet {
 
                     Object result = method.invoke(instance);
                     out.println("Result of the execution: " + result.toString());
+
+                    if (result instanceof ModelView) {
+                        ModelView modelView = (ModelView) result;
+                        String urlTarget = modelView.getUrl();
+                        RequestDispatcher requestDispatcher = requette.getRequestDispatcher("pages/"+urlTarget);
+
+                        HashMap<String, Object> data = modelView.getData();
+                        for (String keyData : data.keySet()) {
+                            requette.setAttribute(keyData, data.get(keyData));
+                        }
+                        requestDispatcher.forward(requette, response);
+                    }
                 } catch (Exception e) {
                     e.printStackTrace(out);
                 }
@@ -93,5 +105,6 @@ public class FrontController extends HttpServlet {
         }
         return map;
 
-    }
-}
+
+
+
