@@ -6,9 +6,12 @@ import java.lang.Exception;
 import java.io.PrintWriter;
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.HashMap;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import annotation.*;
 import utils.*;
 
@@ -41,7 +44,7 @@ public class FrontController extends HttpServlet {
 
     public void processRequest(HttpServletRequest requette, HttpServletResponse response)
             throws ServletException, IOException {
-        String url = requette.getRequestURL().toString();
+        String url = requette.getRequestURI();
         PrintWriter out = response.getWriter();
 
         boolean urlExist = false;
@@ -52,11 +55,42 @@ public class FrontController extends HttpServlet {
                 out.println("with the class: " + mapp.get(key).getClassName());
                 try {
                     Class<?> clazz = Class.forName(mapp.get(key).getClassName());
+                    Method[] methods = clazz.getDeclaredMethods();
                     Object instance = clazz.getDeclaredConstructor().newInstance();
-                    Method method = clazz.getMethod(mapp.get(key).getMethodeName());
+                    // Method method = clazz.getMethod(mapp.get(key).getMethodeName());
+                    Method m = null;
+                    for (Method method : methods) {
+                        if (method.getName().equals(mapp.get(key).getMethodeName())) {
+                            m = method;
+                        }
+                    }
 
-                    Object result = method.invoke(instance);
-                    out.println("Result of the execution: " + result.toString());
+                    Parameter[] params = m.getParameters();
+                    int methodParamCount = params.length;
+                    List<String> paramNames = Collections.list(requette.getParameterNames());
+                    int requestParamCount = paramNames.size();
+                    if (methodParamCount != requestParamCount) {
+                        out.println("Error: The number of parameters sent (" + requestParamCount
+                                + ") does not match the number of parameters required by the method ("
+                                + methodParamCount + ").");
+                        return;
+                    }
+                    Object result;
+
+                    if (methodParamCount < 1) {
+                        result = m.invoke(instance);
+                    } else {
+                        Object[] paramValues = new Object[methodParamCount];
+                        for (int i = 0; i < params.length; i++) {
+                            String paramName = params[i].isAnnotationPresent(ParamAnnotation.class)
+                                    ? params[i].getAnnotation(ParamAnnotation.class).value()
+                                    : params[i].getName();
+
+                            String paramValue = requette.getParameter(paramName);
+                            paramValues[i] = Util.convertParameterValue(paramValue, params[i].getType());
+                        }
+                        result = m.invoke(instance, paramValues);
+                    }
 
                     if (result instanceof ModelView) {
                         ModelView modelView = (ModelView) result;
@@ -64,17 +98,21 @@ public class FrontController extends HttpServlet {
                         ServletContext context = getServletContext();
                         String realPath = context.getRealPath(urlTarget);
 
-                        if (realPath == null || !new File(realPath).exists()) {
-                            throw new ServletException("La page JSP " + urlTarget + " n'existe pas.");
-                        }
+                        // HashMap<String, Object> data = modelView.getData();
+                        // for (String keyData : data.keySet()) {
+                        // requette.setAttribute(keyData, data.get(keyData));
+                        // }
 
                         HashMap<String, Object> data = modelView.getData();
-                        for (String keyData : data.keySet()) {
-                            requette.setAttribute(keyData, data.get(keyData));
+                        for (Map.Entry<String, Object> entry : data.entrySet()) {
+                            requette.setAttribute(entry.getKey(), entry.getValue());
                         }
                         RequestDispatcher requestDispatcher = requette.getRequestDispatcher("pages/" + urlTarget);
                         requestDispatcher.forward(requette, response);
 
+                        if (realPath == null || !new File(realPath).exists()) {
+                            throw new ServletException("La page JSP " + urlTarget + " n'existe pas.");
+                        }
                     } else if (result instanceof String) {
                         out.println(result.toString());
                     } else {
@@ -141,4 +179,5 @@ public class FrontController extends HttpServlet {
         return map;
 
     }
+
 }
