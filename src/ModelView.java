@@ -7,6 +7,7 @@ public class ModelView {
     HashMap<String, Object> data;
 
     public ModelView() {
+        this.data = new HashMap<>();
     }
 
     public ModelView(String url, HashMap<String, Object> data) {
@@ -30,8 +31,7 @@ public class ModelView {
         this.data = data;
     }
 
-    public void add(String url, Object value) {
-        this.data.put(url, value);
+    public void add(String nameUrl, Object value) {
+        this.data.put(nameUrl, value);
     }
-
 }
