@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import annotation.*;
@@ -73,6 +74,26 @@ public class FrontController extends HttpServlet {
                     Object[] parameterValues = Util.getParameterValues(requette, m, ParamAnnotation.class,
                             ParamObject.class);
 
+                    Field sessionField = null;
+                    Field[] fields = clazz.getDeclaredFields();
+                    for (Field field : fields) {
+                        if (field.getType().equals(MySession.class)) {
+                            sessionField = field;
+                            break;
+                        }
+                    }
+                    if (sessionField != null) {
+                        sessionField.setAccessible(true);
+                        sessionField.set(instance, new MySession(requette.getSession()));
+                    }
+
+                    for (int i = 0; i < parameterValues.length; i++) {
+                        if (parameterValues[i] == null && m.getParameterTypes()[i].equals(MySession.class)) {
+                            MySession session = new MySession(requette.getSession());
+                            parameterValues[i] = session;
+                        }
+                    }
+
                     Object result = m.invoke(instance, parameterValues);
 
                     if (result instanceof ModelView) {
@@ -85,7 +106,7 @@ public class FrontController extends HttpServlet {
                         for (Map.Entry<String, Object> entry : data.entrySet()) {
                             requette.setAttribute(entry.getKey(), entry.getValue());
                         }
-                        RequestDispatcher requestDispatcher = requette.getRequestDispatcher("pages/" + urlTarget);
+                        RequestDispatcher requestDispatcher = requette.getRequestDispatcher(urlTarget);
                         requestDispatcher.forward(requette, response);
 
                         if (realPath == null || !new File(realPath).exists()) {
@@ -97,7 +118,8 @@ public class FrontController extends HttpServlet {
                         throw new ServletException("Type de retour inconnu : " + result.getClass().getName());
                     }
                 } catch (Exception e) {
-                    e.printStackTrace(out);
+                    out.println(e.getMessage());
+                    // e.printStackTrace(out);
                 }
                 urlExist = true;
                 break;

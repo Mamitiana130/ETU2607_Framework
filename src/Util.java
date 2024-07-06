@@ -1,29 +1,49 @@
 package utils;
 
 import javax.servlet.http.HttpServletRequest;
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
+import java.lang.reflect.*;
+
 import annotation.*;
+import java.lang.Exception;
 
 public class Util {
 
     public static Object[] getParameterValues(HttpServletRequest request, Method method,
-
-            Class<ParamAnnotation> annotationClass) {
+            Class<ParamAnnotation> paramAnnotationClass, Class<ParamObject> paramObjectAnnotationClass)
+            throws Exception {
         Parameter[] parameters = method.getParameters();
         Object[] parameterValues = new Object[parameters.length];
+
         for (int i = 0; i < parameters.length; i++) {
-            String paramName;
-            if (parameters[i].isAnnotationPresent(annotationClass)) {
-                ParamAnnotation param = parameters[i].getAnnotation(annotationClass);
-                paramName = param.value();
-                System.out.println(paramName);
+            if (parameters[i].isAnnotationPresent(paramAnnotationClass)) {
+                ParamAnnotation param = parameters[i].getAnnotation(paramAnnotationClass);
+                String paramName = param.value();
+                String paramValue = request.getParameter(paramName);
+                parameterValues[i] = convertParameterValue(paramValue, parameters[i].getType());
+            } else if (parameters[i].isAnnotationPresent(paramObjectAnnotationClass)) {
+                ParamObject paramObject = parameters[i].getAnnotation(paramObjectAnnotationClass);
+                String objName = paramObject.objName();
+                try {
+                    Object paramObjectInstance = parameters[i].getType().getDeclaredConstructor().newInstance();
+                    Field[] fields = parameters[i].getType().getDeclaredFields();
+                    for (Field field : fields) {
+                        String fieldName = field.getName();
+                        String paramValue = request.getParameter(objName + "." + fieldName);
+                        field.setAccessible(true);
+                        field.set(paramObjectInstance, convertParameterValue(paramValue, field.getType()));
+                    }
+                    parameterValues[i] = paramObjectInstance;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw new RuntimeException("Failed to create and populate parameter object: " + e.getMessage());
+                }
             } else {
-                paramName = parameters[i].getName();
-                System.out.println(paramName);
+                // throw new Exception("ETU 2607");
+                String paramName = parameters[i].getName();
+                String paramValue = request.getParameter(paramName);
+                parameterValues[i] = convertParameterValue(paramValue,
+                        parameters[i].getType());
             }
-            String paramValue = request.getParameter(paramName);
-            parameterValues[i] = convertParameterValue(paramValue, parameters[i].getType());
         }
         return parameterValues;
     }
