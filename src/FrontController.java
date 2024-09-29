@@ -16,6 +16,8 @@ import java.lang.reflect.Parameter;
 import annotation.*;
 import utils.*;
 
+import com.google.gson.Gson;
+
 import java.io.*;
 import javax.servlet.*;
 import javax.servlet.http.*;
@@ -44,7 +46,7 @@ public class FrontController extends HttpServlet {
     }
 
     public void processRequest(HttpServletRequest requette, HttpServletResponse response)
-            throws ServletException, IOException {
+            throws ServletException, IOException {       
         String url = requette.getRequestURI();
         PrintWriter out = response.getWriter();
 
@@ -96,6 +98,24 @@ public class FrontController extends HttpServlet {
 
                     Object result = m.invoke(instance, parameterValues);
 
+                    if (m.isAnnotationPresent(RestAPI.class)) {
+                        if(result instanceof ModelView){
+                            response.setContentType("application/json");
+                            Gson gson = new Gson();
+
+                            ModelView modelView = (ModelView) result;
+                            String targetUrl = modelView.getUrl();
+                            HashMap<String, Object> data = modelView.getData();
+                            String jsonResult = gson.toJson(data);
+                            out.println(jsonResult);
+                        }
+                        else{
+                            response.setContentType("application/json");
+                            Gson gson = new Gson();
+                            String jsonResult = gson.toJson(result);
+                            out.println(jsonResult);
+                        }
+                    }
                     if (result instanceof ModelView) {
                         ModelView modelView = (ModelView) result;
                         String urlTarget = modelView.getUrl();
