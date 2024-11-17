@@ -17,12 +17,18 @@ import annotation.*;
 import javax.servlet.*;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.http.*;
-
+import javax.servlet.annotation.MultipartConfig;
 
 import java.lang.reflect.Parameter;
 
 import utils.*;
 import annotation.*;
+
+@MultipartConfig(
+    fileSizeThreshold = 1024 * 1024 * 10,  // 10 MB
+    maxFileSize = 1024 * 1024 * 50,        // 50 MB
+    maxRequestSize = 1024 * 1024 * 100     // 100 MB
+)
 
 public class FrontController extends HttpServlet {
 
